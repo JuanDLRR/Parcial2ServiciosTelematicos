@@ -1,0 +1,63 @@
+https://medium.com/@jawadalkassim/enable-dns-over-tls-in-linux-using-systemd-b03e44448c1c
+
+#FIREWALL
+
+yum install vim -y
+#Configuracion del firewall
+service firewalld start
+
+#Network manageer
+service NetworkManager stop
+chkconfig NetworkManager off
+
+#asignar eth1
+firewall-cmd --permanent --zone=dmz --add interface=eth1
+firewall-cmd --permanent --zone=internal --add-interface=eth2
+firewall-cmd --reload
+
+#reglas
+firewall-cmd --direct  --permanent --add-rule ipv4 nat POSTROUTING 0 -o eth1 -j MASQUERADE
+ 
+firewall-cmd --direct  --permanent --add-rule ipv4 filter FORWARD 0 -i eth2 -o eth1 -j ACCEPT
+
+firewall-cmd --direct  --permanent --add-rule ipv4 filter FORWARD 0 -i eth1 -o eth2 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+#agregar servicio http
+firewall-cmd --permanent --zone=dmz --add-service=ftp
+
+#agregar protocolo
+sudo firewall-cmd --zone=dmz --add-port=22/tcp --permanent
+
+#agregar redireccion
+	firewall-cmd --zone="dmz" --add-forward-port=port=22:proto=tcp:toport=22:toaddr=209.191.60.2 --permanent
+
+	firewall-cmd --zone="internal" --add-forward-port=port=22:proto=tcp:toport=22:toaddr=209.191.60.2 --permanent
+
+	firewall-cmd --permanent --zone=dmz --add-masquerade --permanent
+
+firewall-cmd --reload
+
+#CLIENTEFw->ftp seguros
+
+yum install vsftpd -y
+yum install openssl -y
+yum install mod_ssl
+
+cd /etc
+cd vsftpd/
+vim vsftpd.conf
+
+	listen_ipv6=YES
+	ssl_enable=YES
+	allow_anon_ssl=NO
+	force_local_data_ssl=YES
+	force_local_logins_ssl=YES
+	ssl_tlsv1=YES
+	ssl_sslv2=YES
+	ssl_sslv3=YES
+	rsa_cert_file=/etc/ssl/private/vsftpd.pem
+	rsa_private_key_file=/etc/ssl/private/vsftpd.pem
+
+useradd juan.de
+passwd juan.de #Insertar contraseña del usuario#
+service firewalld stop
